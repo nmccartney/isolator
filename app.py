@@ -2,6 +2,16 @@ from flask import Flask, jsonify
 from celery import Celery
 from celery.result import AsyncResult
 from celery.exceptions import TimeoutError
+from celery.decorators import task, periodic_task
+from spleeter.separator import Separator
+# Use audio loader explicitly for loading audio waveform :
+from spleeter.audio.adapter import AudioAdapter
+
+# Using embedded configuration.
+separator = Separator('spleeter:2stems')
+
+# Using custom configuration file.
+# separator = Separator('/path/to/config.json')
 
 app = Flask(__name__)
 
@@ -14,23 +24,57 @@ celery.conf.update(app.config)
 
 # Define a task
 
+#  healthcheck
 
+
+@app.route('/health')
+def health():
+    return jsonify({'ok': True}), 202
+
+
+# (typing=False, bind=True, throws=(KeyError, Exception, TimeoutError))
 @celery.task
 def start_isolation(x, y):
-    result = x + y
+    print('test ', x, y)
+    result = 1+2
     task_id = start_isolation.request.id
+    # pass
+    # audio_loader = AudioAdapter.default()
+    # sample_rate = 44100
+    # waveform, _ = audio_loader.load(
+    #     '/path/to/audio/file', sample_rate=sample_rate)
+
+    # # Perform the separation :
+    # prediction = separator.separate(waveform)
+
     async_result = AsyncResult(task_id, app=app)
     async_result.result = result
-    return result
+    return result  # 'helloworld'
 
 # Route to trigger the task
 
 
 @app.route('/isolate')
 def trigger_isolation():
-    task = start_isolation.delay('example@example.com',
-                                 'Hello', 'This is a test email')
-    return jsonify({'task_id': task.id}), 202
+    print('...testing  route isolate...')
+    # return jsonify({'ok': False})
+    try:
+        print('test---')
+        # return jsonify({'ok': False})
+        task = start_isolation.delay(1, 1)
+
+        print('....isolating ',  task.id)
+
+        return jsonify({'task_id': task.id})
+
+    except Exception as e:  # work on python 3.x
+        print('Failed to run isolator: ' + str(e))
+
+        return jsonify({'ok': False})
+    # finally:
+    #     return jsonify({'ok': False})
+    # pass
+
 
 # Route to check the status of a task
 
@@ -49,4 +93,4 @@ def check_task_status(task_id):
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True, host='0.0.0.0')
