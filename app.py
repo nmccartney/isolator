@@ -39,16 +39,16 @@ def start_isolation(x, y):
     result = 1+2
     task_id = start_isolation.request.id
     # pass
-    # audio_loader = AudioAdapter.default()
-    # sample_rate = 44100
-    # waveform, _ = audio_loader.load(
-    #     '/path/to/audio/file', sample_rate=sample_rate)
+    audio_loader = AudioAdapter.default()
+    sample_rate = 44100
+    waveform, _ = audio_loader.load(
+        '/musicFiles/AM-02-01_Riot_Van.wav', sample_rate=sample_rate)
 
-    # # Perform the separation :
-    # prediction = separator.separate(waveform)
+    # Perform the separation :
+    prediction = separator.separate(waveform)
 
     async_result = AsyncResult(task_id, app=app)
-    async_result.result = result
+    async_result.result = prediction
     return result  # 'helloworld'
 
 # Route to trigger the task

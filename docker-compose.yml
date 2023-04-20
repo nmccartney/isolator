@@ -7,6 +7,7 @@ services:
       - "5000:5000"
     volumes:
       - .:/flask-api
+      - ./musicFiles/:/musicFiles
     depends_on:
       - redis
       - worker
@@ -15,6 +16,7 @@ services:
     command: celery -A app.celery worker --loglevel=info
     volumes:
       - .:/flask-api
+      - ./musicFiles/:/musicFiles
     depends_on:
       - redis
     environment:
@@ -24,3 +26,6 @@ services:
     image: redis
     ports:
       - "6379:6379"
+
+volumes:
+  musicFiles:
