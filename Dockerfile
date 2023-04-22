@@ -1,18 +1,51 @@
 FROM python:3.9-slim as builder
 
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Install base utilities
+# RUN add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) main universe"
+RUN apt-get update --fix-missing && \
+    # apt-get install -y build-essentials  && \
+    apt-get install -y wget && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install miniconda
+ENV CONDA_DIR /opt/conda
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda
+
+# Put conda in path so we can use conda activate
+ENV PATH=$CONDA_DIR/bin:$PATH
+
+
+# RUN apt-get update --fix-missing && apt-get install -y wget
+
+# RUN wget https://repo.anaconda.com/archive/Anaconda3-2022.05-Linux-x86_64.sh
+
+# RUN chmod -v +x Anaconda3-2022.05-Linux-x86_64.sh
+
+# RUN bash Anaconda3-2022.05-Linux-x86_64.sh -b -f
+
+# RUN eval"$(/home/mastodon/anaconda3/bin/conda shell hook)"
+
+# RUN conda config --add channels conda-forge
+
+# RUN conda install -c conda-forge ffmpeg libsndfile
+
 # ------
-RUN apt-get update --fix-missing \
-    && apt-get install -y wget bzip2 ca-certificates curl git \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh -O ~/miniconda.sh \
-    && /bin/bash ~/miniconda.sh -b -p /opt/conda \
-    && rm ~/miniconda.sh \
-    && /opt/conda/bin/conda clean -tipsy \
-    && ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh \
-    && echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc \
-    && echo "conda activate base" >> ~/.bashrc \
-    && ln -s /opt/conda/bin/conda /usr/bin/conda
+# RUN apt-get update --fix-missing \
+#     && apt-get install -y wget bzip2 ca-certificates curl git \
+#     && apt-get clean \
+#     && rm -rf /var/lib/apt/lists/* \
+#     && wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh -O ~/miniconda.sh \
+#     && /bin/bash ~/miniconda.sh -b -p /opt/conda \
+#     && rm ~/miniconda.sh \
+#     && /opt/conda/bin/conda clean -tipsy \
+#     && ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh \
+#     && echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc \
+#     && echo "conda activate base" >> ~/.bashrc \
+#     && ln -s /opt/conda/bin/conda /usr/bin/conda
 # -----
 
 # ENV CUDA_VERSION 10.0.130
@@ -58,7 +91,7 @@ RUN apt-get update --fix-missing \
 
 # ------
 
-RUN conda config --add channels conda-forge
+# RUN conda config --add channels conda-forge
 # RUN conda install -y -c conda-forge 
 # RUN  conda  install  -y -c musdb
 # RUN conda install -y -c deezer-research  
