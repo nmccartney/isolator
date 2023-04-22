@@ -1,5 +1,71 @@
 FROM python:3.9-slim as builder
 
+# ------
+RUN apt-get update --fix-missing \
+    && apt-get install -y wget bzip2 ca-certificates curl git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.6.14-Linux-x86_64.sh -O ~/miniconda.sh \
+    && /bin/bash ~/miniconda.sh -b -p /opt/conda \
+    && rm ~/miniconda.sh \
+    && /opt/conda/bin/conda clean -tipsy \
+    && ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh \
+    && echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc \
+    && echo "conda activate base" >> ~/.bashrc \
+    && ln -s /opt/conda/bin/conda /usr/bin/conda
+# -----
+
+# ENV CUDA_VERSION 10.0.130
+# ENV CUDA_PKG_VERSION 10-0=$CUDA_VERSION-1
+# ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
+# ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+
+# ENV NVIDIA_VISIBLE_DEVICES=all
+# ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+# ENV NVIDIA_REQUIRE_CUDA "cuda>=10.0 brand=tesla,driver>=384,driver<385 brand=tesla,driver>=410,driver<411"
+# ENV NCCL_VERSION 2.4.2
+# ENV CUDNN_VERSION 7.6.0.64
+
+# LABEL com.nvidia.cuda.version="${CUDA_VERSION}"
+# LABEL com.nvidia.cudnn.version="${CUDNN_VERSION}"
+# LABEL com.nvidia.volumes.needed="nvidia_driver"
+
+# RUN apt-get update \
+#     && apt-get install -y --no-install-recommends \
+#     gnupg2 \
+#     curl \
+#     ca-certificates \
+#     && curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub | apt-key add - \
+#     && echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/cuda.list \
+#     && echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list \
+#     && apt-get purge --autoremove -y curl \
+#     && apt-get update \
+#     && apt-get install -y --no-install-recommends \
+#     cuda-cudart-$CUDA_PKG_VERSION \
+#     cuda-compat-10-0 \
+#     && ln -s cuda-10.0 /usr/local/cuda \
+#     && echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
+#     && echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf \
+#     && apt-get install -y --no-install-recommends \
+#     cuda-toolkit-10-0 \
+#     cuda-libraries-$CUDA_PKG_VERSION \
+#     cuda-nvtx-$CUDA_PKG_VERSION \
+#     libnccl2=$NCCL_VERSION-1+cuda10.0 \
+#     libcudnn7=$CUDNN_VERSION-1+cuda10.0 \
+#     && apt-mark hold libnccl2 \
+#     && apt-mark hold libcudnn7 \
+#     && rm -rf /var/lib/apt/lists/*
+
+# ------
+
+RUN conda config --add channels conda-forge
+# RUN conda install -y -c conda-forge 
+# RUN  conda  install  -y -c musdb
+# RUN conda install -y -c deezer-research  
+# RUN conda install -y -c spleeter 
+
+#  ----
+
 WORKDIR /flask-api
 
 # set environment variables
@@ -21,6 +87,8 @@ RUN pip3 install --upgrade pip
 RUN pip3 install --root-user-action=ignore --no-cache-dir -r requirements.txt
 
 RUN pip3 install celery
+
+RUN pip3 install musdb museval
 RUN pip3 install spleeter
 # COPY ./gunicorn-cfg.py .
 COPY . .
