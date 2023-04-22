@@ -1,22 +1,36 @@
 version: '3'
 services:
+  ui:
+    build: ./ui
+    stdin_open: true
+    tty: true
+    depends_on:
+      - web
+    ports:
+      - '3000:3000'
+    volumes:
+      # - ftp-data:/usr/src/node-app/ftp-dir
+      - ./ui/src:/usr/src/node-app/src
+    container_name: ui-dev
+    # command: npm run serve
+    command: npm run dev
   web:
-    build: .
+    build: ./api
     command: python app.py
     ports:
       - "5000:5000"
     volumes:
-      - .:/flask-api
-      - ./musicFiles/:/musicFiles
+      - ./api:/flask-api
+      - ./api/musicFiles/:/musicFiles
     depends_on:
       - redis
       - worker
   worker:
-    build: .
+    build: ./api
     command: celery -A app.celery worker --loglevel=info
     volumes:
-      - .:/flask-api
-      - ./musicFiles/:/musicFiles
+      - ./api:/flask-api
+      - ./api/musicFiles/:/musicFiles
     depends_on:
       - redis
     environment:

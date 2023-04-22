@@ -1,5 +1,6 @@
 import os
 from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from celery import Celery
 from celery.result import AsyncResult
@@ -35,9 +36,12 @@ def download_file(name):
     return send_from_directory(app.config["UPLOAD_FOLDER"], name)
 
 
-@app.route('/uploader', methods=['GET', 'POST'])
+@app.route('/v1/samples', methods=['GET', 'POST'])
 def upload_file():
+    if request.method == 'GET':
+        return  jsonify({'ok': True, 'results': []}), 202
     if request.method == 'POST':
+        print('files ', request.data)
         # check if the post request has the file part
         if 'file' not in request.files:
             return jsonify({'ok': False, 'file': request.url, 'msg': 'No file part'}), 202
@@ -143,6 +147,7 @@ def check_task_status(task_id):
     else:
         return jsonify({'status': task.state})
 
+CORS(app)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
