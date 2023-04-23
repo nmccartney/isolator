@@ -16,7 +16,11 @@ services:
     command: npm run dev
   web:
     build: ./api
-    command: python app.py
+    # command: python app.py
+    command: watchmedo auto-restart --recursive --pattern="*.py" --directory="." python run.py
+    stdin_open: true
+    tty: true
+    stop_signal: SIGINT
     ports:
       - "5000:5000"
     volumes:

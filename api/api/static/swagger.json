@@ -1,0 +1,11 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "description": "sean",
+        "version": "1.0.0",
+        "title": "Mock-Vehcile",
+        "contact": {
+            "email": "nathan.mccartney@nearearth.earo"
+        }
+    }
+}

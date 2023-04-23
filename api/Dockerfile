@@ -119,6 +119,7 @@ COPY requirements.txt .
 RUN pip3 install --upgrade pip
 RUN pip3 install --root-user-action=ignore --no-cache-dir -r requirements.txt
 
+# RUN pip3 install  Flask-SQLAlchemy
 RUN pip3 install celery
 
 RUN pip3 install musdb museval
