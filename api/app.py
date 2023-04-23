@@ -20,7 +20,7 @@ separator = Separator('spleeter:2stems')
 app = Flask(__name__)
 
 # File  upload   config
-app.config['UPLOAD_FOLDER'] = '/musicFiles/uploads/'
+app.config['UPLOAD_FOLDER'] = '/musicFiles/'
 ALLOWED_EXTENSIONS = {'mp3', 'wav'}
 # app.config['MAX_CONTENT_PATH']
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1000 * 1000  # 50MB
@@ -41,7 +41,18 @@ def upload_file():
     if request.method == 'GET':
         return  jsonify({'ok': True, 'results': []}), 202
     if request.method == 'POST':
-        print('files ', request.data)
+        # try:
+        #     print('form: ', request.__dict__)
+        #     print('form: ', request.form.__dict__)
+        #     print('files: ', request.files.__dict__)
+        #     file = request.files.get('file') # get the file from the request
+        #     print('file: ', file)
+        #     file.save('/musicFiles') # save the file to a specified path
+        #     return {'ok':true}
+        # except Exception as err:
+        #     print('err: ',err)
+        #     return {'ok': False}, 202
+        print('files ', request.files.get('file'))
         # check if the post request has the file part
         if 'file' not in request.files:
             return jsonify({'ok': False, 'file': request.url, 'msg': 'No file part'}), 202
@@ -53,9 +64,12 @@ def upload_file():
             # return redirect(request.url)
             return jsonify({'ok': False, 'file': request.url, 'msg': 'no selected  file'}), 202
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            return jsonify({'ok': True, 'file': filename}), 202
+            try:
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                return jsonify({'ok': True, 'file': filename}), 202
+            except Exception as  err:
+                return   {'ok':false,'msg':err}
             # return redirect(url_for('download_file', name=filename))
 
 

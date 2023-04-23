@@ -70,21 +70,28 @@ function onInvalidSubmit({ values, errors, results }) {
   console.log(errors) // a map of field names and their first error message
   console.log(results) // a detailed map of field names and their validation results
 }
-
+import axios from 'axios'
+let api = axios.create({
+  baseURL: `http://localhost:5000/v1`,
+  // timeout: DEFAULT_API_TIMEOUT,
+})
 const submit = handleSubmit(async (values) => {
   console.log(`testing`, values)
   const { name, file } = values
   var formData = new FormData();
-  formData.append("file", file);
-  const { sample, error } = await sampleStore.getNewSample({
-    formData
+  formData.append("file", file[0]);
+  const resp = await api.post('samples', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   })
+  console.log('res ', resp)
   //   form.value.reset()
-  if (error) {
+  if (resp.error) {
     console.warn(error)
   }
-  if (sample) {
-    console.log('created sample')
+  if (resp.sample) {
+    console.log('created sample', sample)
     handleReset()
     dialog.value = false
   }
