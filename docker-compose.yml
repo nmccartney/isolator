@@ -16,8 +16,8 @@ services:
     command: npm run dev
   web:
     build: ./api
-    # command: python app.py
-    command: watchmedo auto-restart --recursive --pattern="*.py" --directory="." python run.py
+    command: python app.py
+    # command: watchmedo auto-restart --recursive --pattern="*.py" --directory="." python app.py
     stdin_open: true
     tty: true
     stop_signal: SIGINT

@@ -6,6 +6,57 @@ from celery import Celery
 from celery.result import AsyncResult
 from celery.exceptions import TimeoutError
 from celery.decorators import task, periodic_task
+from datetime import datetime
+import json
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
+
+class Sample(db.Model):
+    id = db.Column(db.Integer(), primary_key=True)
+    filename = db.Column(db.String(32), nullable=False)
+    task = db.Column(db.String(64), nullable=False)
+    date_joined = db.Column(db.DateTime(), default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"Sample {self.filename}"
+
+    def save(self):
+        try:
+            db.session.add(self)
+            db.session.commit()
+        except Exception as err:
+            print('Error: ', err)
+
+    def update_filename(self, new_filename):
+        self.filename = new_filename
+
+    @classmethod
+    def get_by_id(cls, id):
+        return cls.query.get_or_404(id)
+
+    @classmethod
+    def get_by_filename(cls, filename):
+        return cls.query.filter_by(filename=filename).first()
+
+    @classmethod
+    def get_by_task(cls, task):
+        return cls.query.filter_by(task=task).first()
+
+    def toDICT(self):
+
+        cls_dict = {}
+        cls_dict['_id'] = self.id
+        cls_dict['filename'] = self.filename
+        cls_dict['task'] = self.task
+
+        return cls_dict
+
+    def toJSON(self):
+
+        return self.toDICT()
+
 from spleeter.separator import Separator
 # Use audio loader explicitly for loading audio waveform :
 from spleeter.audio.adapter import AudioAdapter
@@ -19,12 +70,36 @@ separator = Separator('spleeter:2stems')
 
 app = Flask(__name__)
 
+
 # File  upload   config
 app.config['UPLOAD_FOLDER'] = '/musicFiles/'
 ALLOWED_EXTENSIONS = {'mp3', 'wav'}
 # app.config['MAX_CONTENT_PATH']
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1000 * 1000  # 50MB
 
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
+app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = SQLALCHEMY_TRACK_MODIFICATIONS
+
+db.init_app(app)
+# Setup database
+@app.before_first_request
+def initialize_database():
+    try:
+        db.create_all()
+    except Exception as e:
+
+        print('> Error: DBMS Exception: ' + str(e) )
+
+#         # fallback to SQLite
+#         BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+#         SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
+#         app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
+
+#         print('> Fallback to SQLite ')
+#         db.create_all()
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -36,22 +111,16 @@ def download_file(name):
     return send_from_directory(app.config["UPLOAD_FOLDER"], name)
 
 
+class Document(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(80))
+    content = db.Column(db.String(500))
+
 @app.route('/v1/samples', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'GET':
         return  jsonify({'ok': True, 'results': []}), 202
     if request.method == 'POST':
-        # try:
-        #     print('form: ', request.__dict__)
-        #     print('form: ', request.form.__dict__)
-        #     print('files: ', request.files.__dict__)
-        #     file = request.files.get('file') # get the file from the request
-        #     print('file: ', file)
-        #     file.save('/musicFiles') # save the file to a specified path
-        #     return {'ok':true}
-        # except Exception as err:
-        #     print('err: ',err)
-        #     return {'ok': False}, 202
         print('files ', request.files.get('file'))
         # check if the post request has the file part
         if 'file' not in request.files:
@@ -60,18 +129,46 @@ def upload_file():
         # If the user does not select a file, the browser submits an
         # empty file without a filename.
         if file.filename == '':
-            # flash('No selected file')
-            # return redirect(request.url)
             return jsonify({'ok': False, 'file': request.url, 'msg': 'no selected  file'}), 202
         if file and allowed_file(file.filename):
             try:
                 filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                return jsonify({'ok': True, 'file': filename}), 202
+                # return jsonify({'ok': True, 'file': filename}), 202
             except Exception as  err:
                 return   {'ok':false,'msg':err}
             # return redirect(url_for('download_file', name=filename))
-
+            print('got  saved file')
+            try:
+                filename = secure_filename(file.filename)
+                new_sample = Sample()
+                new_sample.filename = filename
+                new_sample.task = 0
+                # print('----', new_sample)
+                # new_document = Document()
+                # new_document.title = 'Example Title'
+                # new_document.content = 'Example Content'
+                # print('---->',  new_document)
+                # db.session.add(new_document)
+                # db.session.commit()
+                # print('----',  new_document)
+                # db.session.add(new_sample.toJSON())
+                # db.session.commit()
+                new_sample.save()
+                # samples = Sample.query.all()
+                # sample_list = []
+                # for sample in samples:
+                #     sample_dict = sample.toJSON()
+                #     sample_list.append(sample_dict)
+                return jsonify({'ok':True,'file': True, 'sample':new_sample.id})
+            except Exception as  err:
+                return   jsonify({'ok':False,'msg':err})
+            except KeyError  as err:
+                return  jsonify({'ok':False,'msg':err})
+            except TypeError  as err:
+                return  jsonify({'ok':False,'msg':err})
+            # finally:
+            #     return  jsonify({'ok':False,'msg':'didnt save'})
 
 # Configure Celery
 app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
@@ -81,7 +178,7 @@ celery = Celery(
     app.name, broker=app.config['CELERY_BROKER_URL'], backend=app.config['CELERY_RESULT_BACKEND'])
 celery.conf.update(app.config)
 
-# Define a task
+# from api.api.models import db
 
 #  healthcheck
 
