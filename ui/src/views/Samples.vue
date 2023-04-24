@@ -32,6 +32,7 @@
             </tr>
           </template>
         </v-data-table-server>
+        {{ samples }}
       </v-sheet>
     </v-responsive>
   </v-container>
@@ -50,11 +51,12 @@ const sampleStore = useSampleStore()
 const loading = ref(true)
 const headers = [
   {
-    title: 'Name',
+    title: 'File Name',
     align: 'start',
     sortable: true,
-    key: 'name',
+    key: 'filename',
   },
+  { title: 'Task', key: 'task', sortable: false },
   { title: 'Status', key: 'status', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false },
 ]

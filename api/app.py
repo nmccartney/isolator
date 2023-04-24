@@ -17,6 +17,7 @@ class Sample(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     filename = db.Column(db.String(32), nullable=False)
     task = db.Column(db.String(64), nullable=False)
+    # files = db.Column(db.ARRAY(db.String), nullable=False)
     date_joined = db.Column(db.DateTime(), default=datetime.utcnow)
 
     def __repr__(self):
@@ -50,6 +51,7 @@ class Sample(db.Model):
         cls_dict['_id'] = self.id
         cls_dict['filename'] = self.filename
         cls_dict['task'] = self.task
+        # cls_dict['files'] = self.files
 
         return cls_dict
 
@@ -93,14 +95,6 @@ def initialize_database():
 
         print('> Error: DBMS Exception: ' + str(e) )
 
-#         # fallback to SQLite
-#         BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-#         SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
-#         app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
-
-#         print('> Fallback to SQLite ')
-#         db.create_all()
-
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -119,7 +113,12 @@ class Document(db.Model):
 @app.route('/v1/samples', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'GET':
-        return  jsonify({'ok': True, 'results': []}), 202
+        samples = Sample.query.all()
+        sample_list = []
+        for sample in samples:
+            sample_dict = sample.toJSON()
+            sample_list.append(sample_dict)
+        return  jsonify({'ok': True, 'results': sample_list}), 202
     if request.method == 'POST':
         print('files ', request.files.get('file'))
         # check if the post request has the file part
@@ -141,26 +140,16 @@ def upload_file():
             print('got  saved file')
             try:
                 filename = secure_filename(file.filename)
+
+                task = start_isolation.delay(filename, 1)
+
+                print('....isolating ',  task.id)
+
                 new_sample = Sample()
                 new_sample.filename = filename
-                new_sample.task = 0
-                # print('----', new_sample)
-                # new_document = Document()
-                # new_document.title = 'Example Title'
-                # new_document.content = 'Example Content'
-                # print('---->',  new_document)
-                # db.session.add(new_document)
-                # db.session.commit()
-                # print('----',  new_document)
-                # db.session.add(new_sample.toJSON())
-                # db.session.commit()
+                new_sample.task = task.id
                 new_sample.save()
-                # samples = Sample.query.all()
-                # sample_list = []
-                # for sample in samples:
-                #     sample_dict = sample.toJSON()
-                #     sample_list.append(sample_dict)
-                return jsonify({'ok':True,'file': True, 'sample':new_sample.id})
+                return jsonify({'ok':True,'file': filename, 'sample':new_sample.id})
             except Exception as  err:
                 return   jsonify({'ok':False,'msg':err})
             except KeyError  as err:
@@ -190,15 +179,15 @@ def health():
 
 # (typing=False, bind=True, throws=(KeyError, Exception, TimeoutError))
 @celery.task
-def start_isolation(x, y):
-    print('test ', x, y)
-    result = 1+2
+def start_isolation(filename, sample_id):
+    print('test ', filename, sample_id)
+    # result = 1+2
     task_id = start_isolation.request.id
     # pass
     audio_loader = AudioAdapter.default()
     sample_rate = 44100
     waveform, _ = audio_loader.load(
-        '/musicFiles/06-Karma_Police.mp3', sample_rate=sample_rate)
+        '/musicFiles/'+filename, sample_rate=sample_rate)
 
     # Perform the separation :
     try:
@@ -209,14 +198,19 @@ def start_isolation(x, y):
     # prediction = separator.separate_to_file(
     # '/musicFiles/audio_example.mp3', '/musicFiles/success')
     print('prediction - ',  prediction)
-
-    wavfile.write('/musicFiles/success/audio_example-v.wav',
-                  sample_rate, prediction['vocals'])
-    wavfile.write('/musicFiles/success/audio_example-a.wav',
-                  sample_rate, prediction['accompaniment'])
+    vocals = '/musicFiles/success/'+os.path.splitext(filename)[0]+'_vocals.wav'
+    accompaniment = '/musicFiles/success/'+os.path.splitext(filename)[0]+'_accompaniment.wav'
+    wavfile.write(vocals,  sample_rate, prediction['vocals'])
+    wavfile.write(accompaniment, sample_rate, prediction['accompaniment'])
     # async_result = AsyncResult(task_id, app=app)
     # async_result.result = prediction
-    return {'ok': True}  # 'helloworld'
+    
+    # new_sample  = Sample.get_by_task(task_id)
+    # if new_sample:
+    #     new_sample.files =  [vocals,accompaniment]
+    #     new_sample.save()
+    print('files - ', sample_id, [vocals,accompaniment])
+    return {'ok': True, 'files':[vocals,accompaniment]}  # 'helloworld'
 
 # Route to trigger the task
 
