@@ -17,7 +17,7 @@ class Sample(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     filename = db.Column(db.String(32), nullable=False)
     task = db.Column(db.String(64), nullable=False)
-    # files = db.Column(db.ARRAY(db.String), nullable=False)
+    files = db.Column(db.JSON(), nullable=True)
     date_joined = db.Column(db.DateTime(), default=datetime.utcnow)
 
     def __repr__(self):
@@ -29,6 +29,10 @@ class Sample(db.Model):
             db.session.commit()
         except Exception as err:
             print('Error: ', err)
+
+    def  remove(self):
+        Sample.query.filter_by(id = self.id).delete()
+        db.session.commit()
 
     def update_filename(self, new_filename):
         self.filename = new_filename
@@ -51,7 +55,7 @@ class Sample(db.Model):
         cls_dict['_id'] = self.id
         cls_dict['filename'] = self.filename
         cls_dict['task'] = self.task
-        # cls_dict['files'] = self.files
+        cls_dict['files'] = self.files
 
         return cls_dict
 
@@ -95,6 +99,13 @@ def initialize_database():
 
         print('> Error: DBMS Exception: ' + str(e) )
 
+        # fallback to SQLite
+        BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+        app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
+
+        print('> Fallback to SQLite ')
+        db.create_all()
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -104,11 +115,19 @@ def allowed_file(filename):
 def download_file(name):
     return send_from_directory(app.config["UPLOAD_FOLDER"], name)
 
-
-class Document(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(80))
-    content = db.Column(db.String(500))
+@app.route('/v1/samples/<sample_id>', methods=['GET', 'DELETE'])
+def req_sample(sample_id):
+    if request.method == 'GET':
+        return  jsonify({'ok': True}), 202
+    if request.method == 'DELETE':
+        try:
+            remove_sample =  Sample.get_by_id(sample_id)
+            remove_sample.remove()
+            # remove_sample.save()
+        except Exception as err:
+            print ('error: ', err)
+            return  jsonify({'ok': False}), 202
+        return  jsonify({'ok': True}), 202
 
 @app.route('/v1/samples', methods=['GET', 'POST'])
 def upload_file():
@@ -204,11 +223,13 @@ def start_isolation(filename, sample_id):
     wavfile.write(accompaniment, sample_rate, prediction['accompaniment'])
     # async_result = AsyncResult(task_id, app=app)
     # async_result.result = prediction
-    
-    # new_sample  = Sample.get_by_task(task_id)
-    # if new_sample:
-    #     new_sample.files =  [vocals,accompaniment]
-    #     new_sample.save()
+    # try:
+    #     new_sample  = Sample.get_by_task(task_id)
+    #     if new_sample:
+    #         new_sample.files =  [vocals,accompaniment]
+    #         new_sample.save()
+    # except Exception as err:
+    #     print('worker err - ',err)
     print('files - ', sample_id, [vocals,accompaniment])
     return {'ok': True, 'files':[vocals,accompaniment]}  # 'helloworld'
 
@@ -240,7 +261,7 @@ def trigger_isolation():
 # Route to check the status of a task
 
 
-@ app.route('/task/<task_id>')
+@app.route('/task/<task_id>')
 def check_task_status(task_id):
     task = AsyncResult(task_id, app=celery)
     if task.state == 'SUCCESS':
